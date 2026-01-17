@@ -72,8 +72,10 @@ export default function Home() {
             </div>
 
             {/* Main Heading */}
-            <h1 className="text-5xl md:text-6xl lg:text-7xl mb-10 md:mb-12 text-white uppercase font-bold tracking-wide">
-              From Any Chain to Hyperliquid <br/>in One Click!
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl mb-10 md:mb-12 text-white uppercase font-bold tracking-wide leading-tight">
+              <span className="block">From Any Chain to</span>
+              <span className="block whitespace-nowrap">Hyperliquid</span>
+              <span className="block">in One Click!</span>
             </h1>
 
             {/* CTA Buttons */}

@@ -626,9 +626,12 @@ export default function BridgeWidget() {
     destinationType === "hyperliquid" &&
     hyperliquidState.status === "success"
   ) {
+    // Use the actual deposited amount from hyperliquidState if available
+    const actualDepositedAmount =
+      hyperliquidState.arbitrumUsdcBalance || amount;
     return (
       <PostDepositDashboard
-        depositAmount={amount}
+        depositAmount={actualDepositedAmount}
         depositTxHash={hyperliquidState.depositTxHash || ""}
         bridgeTxHash={hyperliquidState.txHash || undefined}
         sourceChainId={fromChainId}
