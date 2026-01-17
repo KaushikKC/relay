@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAccount, useBalance } from "wagmi";
+import { useAccount, useBalance, usePublicClient } from "wagmi";
+import { formatUnits } from "viem";
 import Button from "./Button";
 import {
   POPULAR_PAIRS,
@@ -12,11 +13,25 @@ import {
   type PairTradeResponse,
 } from "@/lib/utils/pear-api";
 import { CHAIN_IDS } from "@/lib/config/lifi";
+import { formatTokenAmount } from "@/lib/utils/lifi-helpers";
+
+// Explorer URLs by chain ID
+const EXPLORER_URLS: Record<number, string> = {
+  1: "https://etherscan.io/tx/",
+  42161: "https://arbiscan.io/tx/",
+  8453: "https://basescan.org/tx/",
+  10: "https://optimistic.etherscan.io/tx/",
+  137: "https://polygonscan.com/tx/",
+  56: "https://bscscan.com/tx/",
+  999: "https://hyperevmscan.io/tx/",
+};
 
 interface PostBridgeDashboardProps {
   amount: string;
   token: string;
   txHash?: string;
+  sourceChainId?: number; // Source chain for bridge tx explorer
+  actualBridgedAmount?: string; // Actual amount received (in USDC if bridged to USDC)
   onDepositClick: () => void;
   onReset: () => void;
 }
@@ -85,6 +100,8 @@ export default function PostBridgeDashboard({
   amount,
   token,
   txHash,
+  sourceChainId,
+  actualBridgedAmount,
   onDepositClick,
   onReset,
 }: PostBridgeDashboardProps) {
@@ -108,16 +125,66 @@ export default function PostBridgeDashboard({
     chainId: CHAIN_IDS.HYPEREVM,
   });
 
-  const { data: usdcBalance, isLoading: isUsdcLoading } = useBalance({
-    address,
-    chainId: CHAIN_IDS.HYPEREVM,
-    // USDC on HyperEVM - you'd need the actual address
-  });
+  // USDC on HyperEVM
+  const HYPERevm_USDC_ADDRESS =
+    "0xb88339CB7199b77E23DB6E890353E22632Ba630f" as `0x${string}`;
 
-  const parsedAmount = parseFloat(amount) || 0;
+  // Use public client to fetch USDC balance (more reliable)
+  const publicClient = usePublicClient({ chainId: CHAIN_IDS.HYPEREVM });
+  const [usdcBalanceValue, setUsdcBalanceValue] = useState<string | null>(null);
+  const [isUsdcLoading, setIsUsdcLoading] = useState(true);
+
+  // Fetch USDC balance using public client
+  useEffect(() => {
+    const fetchUSDCBalance = async () => {
+      if (!address || !publicClient) {
+        setIsUsdcLoading(false);
+        return;
+      }
+
+      try {
+        setIsUsdcLoading(true);
+        // ERC20 balanceOf(address) -> uint256
+        const balance = await publicClient.readContract({
+          address: HYPERevm_USDC_ADDRESS,
+          abi: [
+            {
+              constant: true,
+              inputs: [{ name: "_owner", type: "address" }],
+              name: "balanceOf",
+              outputs: [{ name: "balance", type: "uint256" }],
+              type: "function",
+            },
+          ],
+          functionName: "balanceOf",
+          args: [address],
+        });
+
+        // USDC has 6 decimals
+        const formatted = formatUnits(balance as bigint, 6);
+        setUsdcBalanceValue(formatted);
+      } catch (error) {
+        console.error("Error fetching USDC balance:", error);
+        setUsdcBalanceValue(null);
+      } finally {
+        setIsUsdcLoading(false);
+      }
+    };
+
+    fetchUSDCBalance();
+    // Refetch every 5 seconds
+    const interval = setInterval(fetchUSDCBalance, 5000);
+    return () => clearInterval(interval);
+  }, [address, publicClient]);
+
+  // Use actualBridgedAmount if provided, otherwise use amount
+  // If actualBridgedAmount is in Wei, format it (USDC has 6 decimals)
+  const displayAmount = actualBridgedAmount
+    ? formatTokenAmount(actualBridgedAmount, 6) // USDC has 6 decimals
+    : amount;
+  const parsedAmount = parseFloat(displayAmount) || 0;
   const suggestion = getBeginnerPairSuggestion(parsedAmount);
-  const hasLowGas =
-    ethBalance && parseFloat(ethBalance.formatted) < 0.0001;
+  const hasLowGas = ethBalance && parseFloat(ethBalance.formatted) < 0.0001;
 
   const getTimeSinceBridge = () => {
     const now = new Date();
@@ -229,7 +296,9 @@ export default function PostBridgeDashboard({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
               <div className="glass-card p-4 rounded-lg border border-green-400/30 bg-green-400/5">
                 <div className="text-sm text-white/50 mb-2">
-                  {tradeResult.asset1Position.side === "long" ? "Long" : "Short"}
+                  {tradeResult.asset1Position.side === "long"
+                    ? "Long"
+                    : "Short"}
                 </div>
                 <div className="text-2xl font-bold text-white">
                   {tradeResult.asset1Position.asset}
@@ -244,7 +313,9 @@ export default function PostBridgeDashboard({
 
               <div className="glass-card p-4 rounded-lg border border-red-400/30 bg-red-400/5">
                 <div className="text-sm text-white/50 mb-2">
-                  {tradeResult.asset2Position.side === "long" ? "Long" : "Short"}
+                  {tradeResult.asset2Position.side === "long"
+                    ? "Long"
+                    : "Short"}
                 </div>
                 <div className="text-2xl font-bold text-white">
                   {tradeResult.asset2Position.asset}
@@ -459,7 +530,7 @@ export default function PostBridgeDashboard({
         <p className="text-white/70 text-lg">
           You now have{" "}
           <span className="text-[#03b3c3] font-bold">
-            {parsedAmount.toFixed(4)} {token}
+            {parsedAmount.toFixed(2)} USDC
           </span>{" "}
           on HyperEVM
         </p>
@@ -478,12 +549,16 @@ export default function PostBridgeDashboard({
         <div className="grid grid-cols-2 gap-4">
           <div className="glass-card p-4 rounded-lg bg-white/5">
             <p className="text-white/50 text-xs uppercase tracking-wide mb-1">
-              {token} Balance
+              USDC Balance
             </p>
             <p className="text-2xl font-bold text-white">
-              {parsedAmount.toFixed(4)}
+              {isUsdcLoading
+                ? "..."
+                : usdcBalanceValue
+                ? parseFloat(usdcBalanceValue).toFixed(2)
+                : "0.00"}
             </p>
-            <p className="text-xs text-[#03b3c3] mt-1">{token}</p>
+            <p className="text-xs text-[#03b3c3] mt-1">USDC</p>
           </div>
           <div className="glass-card p-4 rounded-lg bg-white/5">
             <p className="text-white/50 text-xs uppercase tracking-wide mb-1">
@@ -547,12 +622,19 @@ export default function PostBridgeDashboard({
           <div className="flex items-center justify-between mb-2">
             <span className="text-white/70 text-sm">Bridge Transaction</span>
             <a
-              href={`https://explorer.hyperliquid-testnet.xyz/tx/${txHash}`}
+              href={
+                sourceChainId && EXPLORER_URLS[sourceChainId]
+                  ? `${EXPLORER_URLS[sourceChainId]}${txHash}`
+                  : `https://hyperevmscan.io/tx/${txHash}`
+              }
               target="_blank"
               rel="noopener noreferrer"
               className="text-[#03b3c3] text-sm hover:underline flex items-center gap-1"
             >
-              View on Explorer
+              View on{" "}
+              {sourceChainId && EXPLORER_URLS[sourceChainId]
+                ? "Explorer"
+                : "HyperEVMScan"}
               <svg
                 className="w-3 h-3"
                 fill="none"
@@ -772,9 +854,7 @@ export default function PostBridgeDashboard({
           onClick={() => setShowRecovery(!showRecovery)}
           className="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition-colors"
         >
-          <span className="text-white/50 text-sm">
-            If something went wrong
-          </span>
+          <span className="text-white/50 text-sm">If something went wrong</span>
           <svg
             className={`w-4 h-4 text-white/50 transition-transform ${
               showRecovery ? "rotate-180" : ""
@@ -801,7 +881,11 @@ export default function PostBridgeDashboard({
             </button>
             {txHash && (
               <a
-                href={`https://explorer.hyperliquid-testnet.xyz/tx/${txHash}`}
+                href={
+                  sourceChainId && EXPLORER_URLS[sourceChainId]
+                    ? `${EXPLORER_URLS[sourceChainId]}${txHash}`
+                    : `https://hyperevmscan.io/tx/${txHash}`
+                }
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block w-full p-3 text-left text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors"

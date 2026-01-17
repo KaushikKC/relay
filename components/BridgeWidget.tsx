@@ -523,7 +523,7 @@ export default function BridgeWidget() {
               10: "https://optimistic.etherscan.io",
               137: "https://polygonscan.com",
               56: "https://bscscan.com",
-              999: "https://explorer.hyperliquid-testnet.xyz",
+              999: "https://hyperevmscan.io",
             };
             const url =
               explorerUrls[partialFailure.fundsLocation.chainId] ||
@@ -664,11 +664,17 @@ export default function BridgeWidget() {
 
   // Render PostBridgeDashboard (NEW - replaces OnboardingGuide)
   if (showDashboard && bridgeState.status === "success") {
+    const route = bridgeState.route;
+    const actualBridgedAmount = route?.toAmount; // Actual amount received in Wei
+    const sourceChainId = route?.fromChainId;
+
     return (
       <PostBridgeDashboard
         amount={amount}
         token={selectedToToken?.symbol || selectedFromToken?.symbol || "tokens"}
         txHash={bridgeState.txHash || undefined}
+        sourceChainId={sourceChainId}
+        actualBridgedAmount={actualBridgedAmount}
         onDepositClick={() => setShowDepositModal(true)}
         onReset={handleReset}
       />
@@ -682,11 +688,17 @@ export default function BridgeWidget() {
       setShowDashboard(true);
     }
 
+    const route = bridgeState.route;
+    const actualBridgedAmount = route?.toAmount; // Actual amount received in Wei
+    const sourceChainId = route?.fromChainId;
+
     return (
       <PostBridgeDashboard
         amount={amount}
         token={selectedToToken?.symbol || selectedFromToken?.symbol || "tokens"}
         txHash={bridgeState.txHash || undefined}
+        sourceChainId={sourceChainId}
+        actualBridgedAmount={actualBridgedAmount}
         onDepositClick={() => setShowDepositModal(true)}
         onReset={handleReset}
       />

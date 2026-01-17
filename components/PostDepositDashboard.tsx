@@ -13,7 +13,7 @@ const EXPLORER_URLS: Record<number, string> = {
   10: "https://optimistic.etherscan.io/tx/",
   137: "https://polygonscan.com/tx/",
   56: "https://bscscan.com/tx/",
-  999: "https://explorer.hyperliquid-testnet.xyz/tx/",
+  999: "https://hyperevmscan.io/tx/",
 };
 
 const CHAIN_NAMES: Record<number, string> = {
@@ -143,9 +143,8 @@ export default function PostDepositDashboard({
   }, [refetchWithDelay]);
 
   // Use fetched balance if available, otherwise use deposit amount
-  const displayBalance = balanceReady && totalUsdcBalance > 0
-    ? totalUsdcBalance
-    : parsedAmount;
+  const displayBalance =
+    balanceReady && totalUsdcBalance > 0 ? totalUsdcBalance : parsedAmount;
 
   // Get explorer URL for bridge transaction (source chain)
   const bridgeExplorerUrl = bridgeTxHash
@@ -292,7 +291,9 @@ export default function PostDepositDashboard({
         {bridgeTxHash && bridgeExplorerUrl && (
           <div className="mt-3 pt-3 border-t border-white/10">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-white/70 text-sm">Bridge Transaction (Source Chain)</span>
+              <span className="text-white/70 text-sm">
+                Bridge Transaction (Source Chain)
+              </span>
               <a
                 href={bridgeExplorerUrl}
                 target="_blank"
@@ -408,7 +409,9 @@ export default function PostDepositDashboard({
                       {suggestion.riskLabel}
                     </span>
                   </div>
-                  <p className="text-white/50 text-sm">{suggestion.description}</p>
+                  <p className="text-white/50 text-sm">
+                    {suggestion.description}
+                  </p>
                   <p className="text-xs text-white/30 mt-1">
                     Fees: {suggestion.fees}
                   </p>
@@ -560,9 +563,7 @@ export default function PostDepositDashboard({
           onClick={() => setShowRecovery(!showRecovery)}
           className="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition-colors"
         >
-          <span className="text-white/50 text-sm">
-            If something went wrong
-          </span>
+          <span className="text-white/50 text-sm">If something went wrong</span>
           <svg
             className={`w-4 h-4 text-white/50 transition-transform ${
               showRecovery ? "rotate-180" : ""

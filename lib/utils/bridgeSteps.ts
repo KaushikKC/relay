@@ -171,7 +171,7 @@ function getExplorerUrl(
     10: "https://optimistic.etherscan.io/tx/",
     137: "https://polygonscan.com/tx/",
     56: "https://bscscan.com/tx/",
-    999: "https://explorer.hyperliquid-testnet.xyz/tx/", // HyperEVM
+    999: "https://hyperevmscan.io/tx/", // HyperEVM
   };
 
   return explorers[chainId]

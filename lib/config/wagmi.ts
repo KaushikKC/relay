@@ -13,16 +13,16 @@ export const hyperEVM = {
     symbol: "ETH",
   },
   rpcUrls: {
-    default: { http: ["https://api.hyperliquid-testnet.xyz/evm"] },
-    public: { http: ["https://api.hyperliquid-testnet.xyz/evm"] },
+    default: { http: ["https://api.hyperliquid.xyz/evm"] },
+    public: { http: ["https://api.hyperliquid.xyz/evm"] },
   },
   blockExplorers: {
     default: {
-      name: "Explorer",
-      url: "https://explorer.hyperliquid-testnet.xyz",
+      name: "HyperEVMScan",
+      url: "https://hyperevmscan.io",
     },
   },
-  testnet: true,
+  testnet: false,
 } as const;
 
 // Get WalletConnect project ID (optional)

@@ -92,7 +92,7 @@ const EXPLORER_URLS: Record<number, string> = {
   10: "https://optimistic.etherscan.io/tx/",
   137: "https://polygonscan.com/tx/",
   56: "https://bscscan.com/tx/",
-  999: "https://explorer.hyperliquid-testnet.xyz/tx/",
+  999: "https://hyperevmscan.io/tx/",
 };
 
 function getExplorerUrl(chainId: number, txHash?: string): string | undefined {
@@ -647,16 +647,17 @@ export function useHyperliquidDeposit() {
                     // IMPORTANT: Only upgrade status, never downgrade
                     // success > in-progress > pending
                     const statusPriority: Record<HLStepStatus, number> = {
-                      "success": 4,
-                      "failed": 3,
+                      success: 4,
+                      failed: 3,
                       "in-progress": 2,
-                      "skipped": 1,
-                      "pending": 0,
+                      skipped: 1,
+                      pending: 0,
                     };
 
                     // Only update if new status is higher priority OR we have new txHash
                     if (
-                      statusPriority[newStatus] > statusPriority[currentStep.status] ||
+                      statusPriority[newStatus] >
+                        statusPriority[currentStep.status] ||
                       (txHash && !currentStep.txHash)
                     ) {
                       newSteps[ourStepIndex] = {
