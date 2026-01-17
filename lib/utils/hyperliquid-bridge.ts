@@ -81,6 +81,27 @@ export const ERC20_ABI = [
     outputs: [{ name: "", type: "uint256" }],
   },
   {
+    name: "transfer",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "transferFrom",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "from", type: "address" },
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
     name: "nonces",
     type: "function",
     stateMutability: "view",
@@ -91,15 +112,17 @@ export const ERC20_ABI = [
 
 /**
  * Bridge2 ABI for deposit functions
+ *
+ * NOTE: The Bridge2 contract does NOT have a deposit() function.
+ * Deposits work by transferring USDC directly to the bridge contract address.
+ * The contract listens for Deposit events (emitted by validators on L1).
+ *
+ * The correct flow is:
+ * 1. Approve USDC for bridge contract
+ * 2. Transfer USDC to bridge contract using transferFrom
  */
 export const BRIDGE2_ABI = [
-  {
-    name: "deposit",
-    type: "function",
-    stateMutability: "nonpayable",
-    inputs: [{ name: "amount", type: "uint256" }],
-    outputs: [],
-  },
+  // No deposit function - deposits work via direct USDC transfer
 ] as const;
 
 /**

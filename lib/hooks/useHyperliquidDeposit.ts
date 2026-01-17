@@ -9,7 +9,6 @@ import type {
 import {
   useAccount,
   useConnectorClient,
-  usePublicClient,
   useSwitchChain,
   useWalletClient,
 } from "wagmi";
@@ -23,7 +22,6 @@ import {
 import {
   getBridgeAddresses,
   ERC20_ABI,
-  BRIDGE2_ABI,
   USDC_DECIMALS,
   ARBITRUM_MAINNET,
 } from "@/lib/utils/hyperliquid-bridge";
@@ -35,7 +33,6 @@ export type HyperliquidDepositStatus =
   | "approving-source"
   | "bridging-to-arbitrum"
   | "waiting-for-arbitrum"
-  | "approving-usdc"
   | "depositing-to-hyperliquid"
   | "success"
   | "error";
@@ -54,7 +51,6 @@ export interface HyperliquidStep {
     | "swap"
     | "bridge-to-arbitrum"
     | "wait-arbitrum"
-    | "approve-usdc"
     | "deposit-hyperliquid"
     | "complete";
   title: string;
@@ -110,7 +106,6 @@ export function useHyperliquidDeposit() {
   const { address, isConnected, chain } = useAccount();
   const { data: connectorClient } = useConnectorClient();
   const { data: walletClientForWrites } = useWalletClient();
-  const publicClient = usePublicClient();
   const { switchChainAsync } = useSwitchChain();
 
   const [depositState, setDepositState] = useState<HyperliquidDepositState>({
@@ -155,11 +150,13 @@ export function useHyperliquidDeposit() {
 
       // Add LI.FI bridge steps for USDC
       route.steps.forEach((lifiStep) => {
-        const stepType = (lifiStep as any).type as string;
+        // Check for approval step - check action structure and tool name
+        const action = (lifiStep as RouteExtended["steps"][0]).action;
+        const actionType = (action as { type?: string })?.type;
         const toolName = lifiStep.toolDetails?.name?.toLowerCase() || "";
 
-        // Approval step
-        if (stepType === "approval" || toolName.includes("approval")) {
+        // Approval step - check action type or tool name
+        if (actionType === "approval" || toolName.includes("approval")) {
           steps.push({
             stepIndex: stepIndex++,
             type: "approval",
@@ -174,7 +171,7 @@ export function useHyperliquidDeposit() {
 
         // Swap step
         if (
-          stepType === "swap" ||
+          actionType === "swap" ||
           toolName.includes("swap") ||
           (lifiStep.action.fromChainId === lifiStep.action.toChainId &&
             lifiStep.action.fromToken.address !==
@@ -194,9 +191,9 @@ export function useHyperliquidDeposit() {
 
         // Bridge step (to Arbitrum)
         if (
-          stepType === "cross" ||
-          stepType === "bridge" ||
-          stepType === "lifi" ||
+          actionType === "cross" ||
+          actionType === "bridge" ||
+          actionType === "lifi" ||
           toolName.includes("bridge") ||
           lifiStep.action.fromChainId !== lifiStep.action.toChainId
         ) {
@@ -225,28 +222,17 @@ export function useHyperliquidDeposit() {
         estimatedTime: 60,
       });
 
-      // Approve USDC for Bridge2
-      steps.push({
-        stepIndex: stepIndex++,
-        type: "approve-usdc",
-        title: "Approving USDC for Hyperliquid",
-        description: "Approve USDC for the Hyperliquid Bridge",
-        status: "pending",
-        chainId: CHAIN_IDS.ARBITRUM,
-        canRetry: true,
-        estimatedTime: 30,
-      });
-
-      // Deposit to Hyperliquid
+      // Deposit to Hyperliquid (simple transfer - no approval needed)
+      // Per Hyperliquid docs: "The user sends native USDC to the bridge"
       steps.push({
         stepIndex: stepIndex++,
         type: "deposit-hyperliquid",
         title: "Depositing to Hyperliquid",
-        description: "Transferring USDC to your Hyperliquid trading account",
+        description: "Transferring USDC to Hyperliquid Bridge",
         status: "pending",
         chainId: CHAIN_IDS.ARBITRUM,
         canRetry: true,
-        estimatedTime: 60,
+        estimatedTime: 30,
       });
 
       // Complete
@@ -295,27 +281,8 @@ export function useHyperliquidDeposit() {
     []
   );
 
-  // Check ETH balance on Arbitrum
-  const checkArbitrumEthBalance = useCallback(
-    async (userAddress: string): Promise<string> => {
-      if (!publicClient) return "0";
-
-      try {
-        // Create a public client for Arbitrum to check balance
-        const balance = await publicClient.getBalance({
-          address: userAddress as `0x${string}`,
-        });
-
-        // Note: This checks balance on current chain. For Arbitrum specifically,
-        // we might need to use a different approach if user is on a different chain
-        return (Number(balance) / 1e18).toFixed(6);
-      } catch (error) {
-        console.error("Error checking Arbitrum ETH balance:", error);
-        return "0";
-      }
-    },
-    [publicClient]
-  );
+  // Note: ETH balance check is now done inline in fetchHyperliquidRoute
+  // using a dedicated Arbitrum publicClient for better reliability
 
   // Fetch route for bridging to Arbitrum
   const fetchRoute = useCallback(
@@ -479,7 +446,7 @@ export function useHyperliquidDeposit() {
         throw error;
       }
     },
-    [initializeHyperliquidSteps, checkArbitrumEthBalance]
+    [initializeHyperliquidSteps]
   );
 
   // Execute the full Hyperliquid deposit flow
@@ -525,7 +492,11 @@ export function useHyperliquidDeposit() {
 
       try {
         // Set wallet client for LI.FI
-        setLiFiWalletClient(walletClient as any);
+        // walletClient is already typed as WalletClient from wagmi
+        // setLiFiWalletClient expects a specific type, so we cast it
+        setLiFiWalletClient(
+          walletClient as Parameters<typeof setLiFiWalletClient>[0]
+        );
         console.log("Wallet client set for LI.FI SDK");
 
         let currentStepIdx = 0;
@@ -625,18 +596,17 @@ export function useHyperliquidDeposit() {
         // Execute LI.FI bridge to Arbitrum
         const executionOptions: ExecutionOptions = {
           updateRouteHook: (updatedRoute: RouteExtended) => {
-            // Find current LI.FI step
-            const currentLifiStepIndex = updatedRoute.steps.findIndex(
-              (step) =>
-                step.execution?.status === "PENDING" ||
-                step.execution?.status === "ACTION_REQUIRED"
-            );
-
             // Update corresponding step
             updatedRoute.steps.forEach((lifiStep, idx) => {
-              const execution = (lifiStep as any).execution;
+              // Type-safe access to execution
+              const execution = (lifiStep as RouteExtended["steps"][0])
+                .execution;
               if (execution) {
-                const txHash = execution.process?.[0]?.txHash;
+                // Type-safe access to process and txHash
+                const process = execution.process as
+                  | Array<{ txHash?: string }>
+                  | undefined;
+                const txHash = process?.[0]?.txHash;
                 let status: HLStepStatus = "pending";
                 if (execution.status === "DONE") status = "success";
                 else if (execution.status === "FAILED") status = "failed";
@@ -654,13 +624,21 @@ export function useHyperliquidDeposit() {
               }
             });
 
-            setDepositState((prev) => ({
-              ...prev,
-              route: updatedRoute,
-              txHash:
-                updatedRoute.steps[0]?.execution?.process?.[0]?.txHash ||
-                prev.txHash,
-            }));
+            setDepositState((prev) => {
+              // Type-safe access to txHash
+              const firstStep = updatedRoute.steps[0];
+              const execution = firstStep?.execution;
+              const process = execution?.process as
+                | Array<{ txHash?: string }>
+                | undefined;
+              const txHash = process?.[0]?.txHash || prev.txHash;
+
+              return {
+                ...prev,
+                route: updatedRoute,
+                txHash,
+              };
+            });
           },
           acceptExchangeRateUpdateHook: async () => true,
           switchChainHook: async (requiredChainId: number) => {
@@ -729,75 +707,27 @@ export function useHyperliquidDeposit() {
           );
         }
 
-        // Step: Approve USDC for Bridge2
-        setDepositState((prev) => ({
-          ...prev,
-          status: "approving-usdc",
-          arbitrumUsdcBalance: (
-            Number(usdcBalance) /
-            10 ** USDC_DECIMALS
-          ).toFixed(2),
-        }));
-
-        const approveStepIndex = depositState.steps.findIndex(
-          (s) => s.type === "approve-usdc"
-        );
-        updateStepStatus(approveStepIndex, "in-progress");
-
-        // Check current allowance using Arbitrum RPC
-        console.log("🔍 Checking USDC allowance...");
-        const allowanceResult = await arbitrumPublicClient.readContract({
-          address: usdc as `0x${string}`,
-          abi: ERC20_ABI,
-          functionName: "allowance",
-          args: [address, bridge as `0x${string}`],
-        });
-
-        const currentAllowance = allowanceResult as bigint;
-
-        if (currentAllowance < usdcBalance) {
-          // Approve USDC - use walletClientForWrites for contract writes
-          if (!walletClientForWrites) {
-            throw new Error("Wallet client not available for contract writes");
-          }
-
-          console.log(
-            "✍️ Approving USDC for Hyperliquid Bridge2 on Arbitrum..."
+        // ⭐ Validate minimum deposit (5 USDC) - per Hyperliquid docs
+        const MIN_DEPOSIT_AMOUNT = BigInt(5 * 10 ** USDC_DECIMALS); // 5 USDC in wei
+        if (usdcBalance < MIN_DEPOSIT_AMOUNT) {
+          throw new Error(
+            `Minimum deposit is 5 USDC. Your amount: ${usdcBalanceFormatted} USDC. Amounts below 5 USDC will not be credited and may be lost forever.`
           );
-          console.log(`   USDC: ${usdc}`);
-          console.log(`   Bridge: ${bridge}`);
-          console.log(`   Amount: ${usdcBalance.toString()}`);
-          console.log(`   Current chain: ${chain?.id}`);
-
-          // ⭐ CRITICAL FIX: Don't pass chain parameter at all
-          // The wallet is already on Arbitrum, and passing chain causes issues
-          const approveTxHash = await walletClientForWrites.writeContract({
-            address: usdc as `0x${string}`,
-            abi: ERC20_ABI,
-            functionName: "approve",
-            args: [bridge as `0x${string}`, usdcBalance],
-            account: address,
-            // ⭐ Removed: chain: walletClientForWrites.chain (was causing Base chain error)
-          });
-
-          console.log(`✅ Approval transaction sent: ${approveTxHash}`);
-          updateStepStatus(approveStepIndex, "success", approveTxHash);
-
-          // Wait for approval confirmation using Arbitrum RPC
-          console.log("⏳ Waiting for approval confirmation...");
-          await arbitrumPublicClient.waitForTransactionReceipt({
-            hash: approveTxHash,
-          });
-          console.log("✅ Approval confirmed!");
-        } else {
-          console.log("✅ USDC already approved for Hyperliquid Bridge2");
-          updateStepStatus(approveStepIndex, "success");
         }
 
-        // Step: Deposit to Hyperliquid
+        // ⭐ IMPORTANT: Bridge2 does NOT have a deposit() function!
+        // Per the official docs and contract:
+        // "The user sends native USDC to the bridge, and it is credited to the account that sent it"
+        // "The validators on the L1 listen for Transfer events to this contract"
+        //
+        // So the deposit flow is simply: usdc.transfer(bridgeAddress, amount)
+        // No approval needed, no deposit function call - just a direct transfer!
+
+        // Step: Transfer USDC to Hyperliquid Bridge
         setDepositState((prev) => ({
           ...prev,
           status: "depositing-to-hyperliquid",
+          arbitrumUsdcBalance: usdcBalanceFormatted,
         }));
 
         const depositStepIndex = depositState.steps.findIndex(
@@ -809,21 +739,24 @@ export function useHyperliquidDeposit() {
           throw new Error("Wallet client not available for deposit");
         }
 
-        console.log("🚀 Depositing USDC to Hyperliquid Bridge2...");
+        console.log("🚀 Depositing USDC to Hyperliquid Bridge...");
         console.log(`   Bridge: ${bridge}`);
-        console.log(`   Destination: ${address}`);
+        console.log(`   From: ${address}`);
         console.log(
           `   Amount: ${usdcBalance.toString()} (${usdcBalanceFormatted} USDC)`
         );
+        console.log(`   Current chain: ${chain?.id}`);
 
-        // ⭐ CRITICAL FIX: Don't pass chain parameter at all
+        // ⭐ CORRECT FLOW: Simply transfer USDC to the bridge contract
+        // The validators watch for these transfers and credit the user's L1 account
+        console.log("📤 Transferring USDC to bridge contract...");
         const depositTxHash = await walletClientForWrites.writeContract({
-          address: bridge as `0x${string}`,
-          abi: BRIDGE2_ABI,
-          functionName: "deposit",
-          args: [usdcBalance],
+          address: usdc as `0x${string}`,
+          abi: ERC20_ABI,
+          functionName: "transfer",
+          args: [bridge as `0x${string}`, usdcBalance],
           account: address,
-          // ⭐ Removed: chain: walletClientForWrites.chain
+          chain: arbitrum, // ⭐ Explicitly use Arbitrum chain
         });
 
         console.log(`✅ Deposit transaction sent: ${depositTxHash}`);
@@ -882,10 +815,11 @@ export function useHyperliquidDeposit() {
       address,
       connectorClient,
       walletClientForWrites,
-      publicClient,
       chain,
       switchChainAsync,
       depositState.steps,
+      depositState.needsGasBridge,
+      depositState.gasRoute,
       updateStepStatus,
     ]
   );
@@ -917,8 +851,8 @@ export function useHyperliquidDeposit() {
       if (!step || !depositState.route) return;
 
       // For now, retry from the beginning of the failed phase
-      if (step.type === "approve-usdc" || step.type === "deposit-hyperliquid") {
-        // Re-execute from USDC approval
+      if (step.type === "deposit-hyperliquid") {
+        // Re-execute the deposit step
         await executeDeposit(depositState.route);
       } else {
         // Re-execute the entire flow

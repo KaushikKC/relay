@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import Button from "./Button";
-import OnboardingGuide from "./OnboardingGuide";
 import ErrorRecovery from "./ErrorRecovery";
 import BridgeProgress from "./BridgeProgress";
 import ResumeBridgeDialog from "./ResumeBridgeDialog";
@@ -31,11 +30,7 @@ import {
   hasPendingTransaction,
   type PersistedBridgeState,
 } from "@/lib/utils/transactionPersistence";
-import {
-  CHAIN_IDS,
-  DESTINATIONS,
-  type DestinationType,
-} from "@/lib/config/lifi";
+import { CHAIN_IDS, type DestinationType } from "@/lib/config/lifi";
 import { useHyperliquidDeposit } from "@/lib/hooks/useHyperliquidDeposit";
 import type { Chain, Token, RouteExtended } from "@lifi/sdk";
 
@@ -471,7 +466,7 @@ export default function BridgeWidget() {
 
     try {
       // Restore bridge state from saved route
-      await executeBridge(savedState.routeData as any);
+      await executeBridge(savedState.routeData as RouteExtended);
       setShowResumeDialog(false);
     } catch (error) {
       console.error("Error resuming bridge:", error);
@@ -508,7 +503,7 @@ export default function BridgeWidget() {
           onRetryBridge={() => {
             setPartialFailure(null);
             if (savedState?.routeData) {
-              executeBridge(savedState.routeData as any);
+              executeBridge(savedState.routeData as RouteExtended);
             }
           }}
           onViewFunds={() => {
@@ -809,7 +804,7 @@ export default function BridgeWidget() {
                   ? "post-bridge"
                   : s.type === "complete"
                   ? "receive"
-                  : (s.type as any),
+                  : s.type, // Type is already validated as BridgeStep['type']
               title: s.title,
               description: s.description,
               status: s.status,
@@ -926,7 +921,6 @@ export default function BridgeWidget() {
           <p className="text-sm text-white/70 mb-3">Deposit Flow:</p>
           <div className="flex items-center justify-between gap-2 text-sm flex-wrap">
             <div className="flex flex-col items-center">
-              <span className="text-2xl mb-1">💰</span>
               <span className="text-white font-medium">
                 {selectedFromToken?.symbol}
               </span>
@@ -936,13 +930,11 @@ export default function BridgeWidget() {
             </div>
             <span className="text-[#03b3c3] text-xl">→</span>
             <div className="flex flex-col items-center">
-              <span className="text-2xl mb-1">🌉</span>
               <span className="text-white font-medium">USDC</span>
               <span className="text-white/50 text-xs">Arbitrum</span>
             </div>
             <span className="text-[#03b3c3] text-xl">→</span>
             <div className="flex flex-col items-center">
-              <span className="text-2xl mb-1">📈</span>
               <span className="text-white font-medium">USDC</span>
               <span className="text-white/50 text-xs">Hyperliquid</span>
             </div>
@@ -999,12 +991,14 @@ export default function BridgeWidget() {
             {hyperliquidState.needsGasBridge && (
               <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
                 <div className="flex items-start gap-2">
-                  <span className="text-yellow-400">⛽</span>
                   <div>
-                    <p className="text-yellow-400 text-sm font-medium">Gas Reserve Included</p>
+                    <p className="text-yellow-400 text-sm font-medium">
+                      Gas Reserve Included
+                    </p>
                     <p className="text-white/70 text-xs mt-1">
-                      We&apos;ll bridge ~${hyperliquidState.gasAmountUsd} ETH to Arbitrum for gas fees.
-                      This ensures your Hyperliquid deposit completes successfully.
+                      We&apos;ll bridge ~${hyperliquidState.gasAmountUsd} ETH to
+                      Arbitrum for gas fees. This ensures your Hyperliquid
+                      deposit completes successfully.
                     </p>
                   </div>
                 </div>

@@ -174,7 +174,11 @@ export function detectPartialFailure(
       tokenAddress: stepData.action.toToken.address,
       tokenSymbol: stepData.action.toToken.symbol,
       amount:
-        (stepData.action as any).toAmount || stepData.estimate.toAmount || "0",
+        ("toAmount" in stepData.action
+          ? (stepData.action as { toAmount?: string }).toAmount
+          : undefined) ||
+        stepData.estimate.toAmount ||
+        "0",
     },
   };
 }
