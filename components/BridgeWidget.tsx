@@ -1399,7 +1399,7 @@ export default function BridgeWidget() {
         )}
 
         {/* Auto-deposit Option (only for HyperEVM) */}
-        {destinationType === "hyperevm" && (
+        {/* {destinationType === "hyperevm" && (
           <label className="flex items-center gap-3 glass-card p-4 rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
             <input
               type="checkbox"
@@ -1416,7 +1416,7 @@ export default function BridgeWidget() {
               </span>
             </div>
           </label>
-        )}
+        )} */}
       </div>
 
       <Button
