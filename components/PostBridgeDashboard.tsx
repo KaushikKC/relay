@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAccount, useBalance, usePublicClient } from "wagmi";
-import { formatUnits } from "viem";
+import { useAccount } from "wagmi";
+import { createPublicClient, http, formatUnits } from "viem";
 import Button from "./Button";
+import { hyperEVM } from "@/lib/config/wagmi";
 import {
   POPULAR_PAIRS,
   getBeginnerPairSuggestion,
@@ -12,7 +13,6 @@ import {
   type PairTradeParams,
   type PairTradeResponse,
 } from "@/lib/utils/pear-api";
-import { CHAIN_IDS } from "@/lib/config/lifi";
 import { formatTokenAmount } from "@/lib/utils/lifi-helpers";
 
 // Explorer URLs by chain ID
@@ -29,9 +29,10 @@ const EXPLORER_URLS: Record<number, string> = {
 interface PostBridgeDashboardProps {
   amount: string;
   token: string;
+  tokenDecimals?: number; // Token decimals (default 18 for most tokens, 6 for USDC)
   txHash?: string;
   sourceChainId?: number; // Source chain for bridge tx explorer
-  actualBridgedAmount?: string; // Actual amount received (in USDC if bridged to USDC)
+  actualBridgedAmount?: string; // Actual amount received in wei
   onDepositClick: () => void;
   onReset: () => void;
 }
@@ -99,6 +100,7 @@ const BUILDER_ACTIONS = [
 export default function PostBridgeDashboard({
   amount,
   token,
+  tokenDecimals = 18, // Default to 18 for most tokens
   txHash,
   sourceChainId,
   actualBridgedAmount,
@@ -118,34 +120,54 @@ export default function PostBridgeDashboard({
   const [isExecuting, setIsExecuting] = useState(false);
   const [showRecovery, setShowRecovery] = useState(false);
   const [bridgeTime] = useState(new Date());
+  const [ethBalanceValue, setEthBalanceValue] = useState<string | null>(null);
+  const [isEthLoading, setIsEthLoading] = useState(true);
 
-  // Get HyperEVM balance
-  const { data: ethBalance, isLoading: isEthLoading } = useBalance({
-    address,
-    chainId: CHAIN_IDS.HYPEREVM,
+  // Create public client for HyperEVM with correct RPC
+  const publicClient = createPublicClient({
+    chain: hyperEVM,
+    transport: http("https://rpc.hyperliquid.xyz/evm"),
   });
 
   // USDC on HyperEVM
   const HYPERevm_USDC_ADDRESS =
     "0xb88339CB7199b77E23DB6E890353E22632Ba630f" as `0x${string}`;
 
-  // Use public client to fetch USDC balance (more reliable)
-  const publicClient = usePublicClient({ chainId: CHAIN_IDS.HYPEREVM });
   const [usdcBalanceValue, setUsdcBalanceValue] = useState<string | null>(null);
   const [isUsdcLoading, setIsUsdcLoading] = useState(true);
 
-  // Fetch USDC balance using public client
+  // Fetch ETH and USDC balances using public client with 5-second refresh
   useEffect(() => {
-    const fetchUSDCBalance = async () => {
-      if (!address || !publicClient) {
-        setIsUsdcLoading(false);
-        return;
+    if (!address) {
+      setIsUsdcLoading(false);
+      setIsEthLoading(false);
+      return;
+    }
+
+    const fetchBalances = async () => {
+      // Create a fresh client each time to avoid stale references
+      const client = createPublicClient({
+        chain: hyperEVM,
+        transport: http("https://rpc.hyperliquid.xyz/evm"),
+      });
+
+      try {
+        // Fetch ETH balance
+        setIsEthLoading(true);
+        const ethBal = await client.getBalance({ address });
+        const ethFormatted = formatUnits(ethBal, 18);
+        setEthBalanceValue(ethFormatted);
+        setIsEthLoading(false);
+      } catch (error) {
+        console.error("Error fetching ETH balance:", error);
+        setEthBalanceValue(null);
+        setIsEthLoading(false);
       }
 
       try {
         setIsUsdcLoading(true);
         // ERC20 balanceOf(address) -> uint256
-        const balance = await publicClient.readContract({
+        const balance = await client.readContract({
           address: HYPERevm_USDC_ADDRESS,
           abi: [
             {
@@ -171,20 +193,21 @@ export default function PostBridgeDashboard({
       }
     };
 
-    fetchUSDCBalance();
+    // Initial fetch
+    fetchBalances();
     // Refetch every 5 seconds
-    const interval = setInterval(fetchUSDCBalance, 5000);
+    const interval = setInterval(fetchBalances, 5000);
     return () => clearInterval(interval);
-  }, [address, publicClient]);
+  }, [address]);
 
   // Use actualBridgedAmount if provided, otherwise use amount
-  // If actualBridgedAmount is in Wei, format it (USDC has 6 decimals)
+  // Format with correct decimals based on token
   const displayAmount = actualBridgedAmount
-    ? formatTokenAmount(actualBridgedAmount, 6) // USDC has 6 decimals
+    ? formatTokenAmount(actualBridgedAmount, tokenDecimals)
     : amount;
   const parsedAmount = parseFloat(displayAmount) || 0;
   const suggestion = getBeginnerPairSuggestion(parsedAmount);
-  const hasLowGas = ethBalance && parseFloat(ethBalance.formatted) < 0.0001;
+  const hasLowGas = ethBalanceValue && parseFloat(ethBalanceValue) < 0.0001;
 
   const getTimeSinceBridge = () => {
     const now = new Date();
@@ -530,7 +553,7 @@ export default function PostBridgeDashboard({
         <p className="text-white/70 text-lg">
           You now have{" "}
           <span className="text-[#03b3c3] font-bold">
-            {parsedAmount.toFixed(2)} USDC
+            {parsedAmount.toFixed(2)} {token}
           </span>{" "}
           on HyperEVM
         </p>
@@ -565,7 +588,7 @@ export default function PostBridgeDashboard({
               Gas Token
             </p>
             <p className="text-2xl font-bold text-white">
-              {isEthLoading ? "..." : ethBalance?.formatted.slice(0, 8) || "0"}
+              {isEthLoading ? "..." : ethBalanceValue ? parseFloat(ethBalanceValue).toFixed(6) : "0"}
             </p>
             <p
               className={`text-xs mt-1 ${

@@ -4,6 +4,8 @@ import { injected, walletConnect } from "wagmi/connectors";
 import type { CreateConnectorFn } from "wagmi";
 
 // HyperEVM Chain Configuration
+// RPC: https://rpc.hyperliquid.xyz/evm (rate limited to 100 req/min)
+// Alternative: https://hyperliquid.drpc.org
 export const hyperEVM = {
   id: 999,
   name: "HyperEVM",
@@ -13,8 +15,8 @@ export const hyperEVM = {
     symbol: "ETH",
   },
   rpcUrls: {
-    default: { http: ["https://api.hyperliquid.xyz/evm"] },
-    public: { http: ["https://api.hyperliquid.xyz/evm"] },
+    default: { http: ["https://rpc.hyperliquid.xyz/evm"] },
+    public: { http: ["https://rpc.hyperliquid.xyz/evm"] },
   },
   blockExplorers: {
     default: {

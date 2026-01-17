@@ -667,11 +667,15 @@ export default function BridgeWidget() {
     const route = bridgeState.route;
     const actualBridgedAmount = route?.toAmount; // Actual amount received in Wei
     const sourceChainId = route?.fromChainId;
+    // Get destination token decimals (default 18, 6 for USDC/USDT)
+    const destToken = selectedToToken;
+    const tokenDecimals = destToken?.symbol === "USDC" || destToken?.symbol === "USDT" ? 6 : 18;
 
     return (
       <PostBridgeDashboard
         amount={amount}
         token={selectedToToken?.symbol || selectedFromToken?.symbol || "tokens"}
+        tokenDecimals={tokenDecimals}
         txHash={bridgeState.txHash || undefined}
         sourceChainId={sourceChainId}
         actualBridgedAmount={actualBridgedAmount}
@@ -691,11 +695,15 @@ export default function BridgeWidget() {
     const route = bridgeState.route;
     const actualBridgedAmount = route?.toAmount; // Actual amount received in Wei
     const sourceChainId = route?.fromChainId;
+    // Get destination token decimals (default 18, 6 for USDC/USDT)
+    const destToken = selectedToToken;
+    const tokenDecimals = destToken?.symbol === "USDC" || destToken?.symbol === "USDT" ? 6 : 18;
 
     return (
       <PostBridgeDashboard
         amount={amount}
         token={selectedToToken?.symbol || selectedFromToken?.symbol || "tokens"}
+        tokenDecimals={tokenDecimals}
         txHash={bridgeState.txHash || undefined}
         sourceChainId={sourceChainId}
         actualBridgedAmount={actualBridgedAmount}

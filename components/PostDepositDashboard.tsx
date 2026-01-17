@@ -127,12 +127,14 @@ export default function PostDepositDashboard({
     accountValue,
     withdrawable,
     isLoading: isBalanceLoading,
+    refetch,
     refetchWithDelay,
   } = useHyperliquidBalance(address);
 
   const parsedAmount = parseFloat(depositAmount) || 0;
 
   // Fetch balance with delay after mount (deposit needs time to process)
+  // Then refresh every 5 seconds
   useEffect(() => {
     const fetchBalanceWithDelay = async () => {
       // Wait 3 seconds for deposit to be processed
@@ -140,7 +142,14 @@ export default function PostDepositDashboard({
       setBalanceReady(true);
     };
     fetchBalanceWithDelay();
-  }, [refetchWithDelay]);
+
+    // Set up 5-second refresh interval
+    const interval = setInterval(() => {
+      refetch();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [refetch, refetchWithDelay]);
 
   // Use fetched balance if available, otherwise use deposit amount
   const displayBalance =
