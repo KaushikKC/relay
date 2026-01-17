@@ -4,14 +4,13 @@ import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Button from "@/components/Button";
 import BridgeWidget from "@/components/BridgeWidget";
-import DepositToHyperliquid from "@/components/DepositToHyperliquid";
 
 const COMPONENT_EXAMPLES = {
   bridgeWidget: {
     title: "Bridge Widget",
     description:
       "Full-featured bridge component with built-in UI and wallet integration",
-    code: `import { BridgeWidget } from '@relay-bridge/sdk/components';
+    code: `import { BridgeWidget } from 'relay-bridge-sdk/components';
 
 function App() {
   return (
@@ -31,7 +30,7 @@ function App() {
     title: "Deposit to Hyperliquid",
     description:
       "Component for depositing funds to Hyperliquid trading account",
-    code: `import { DepositToHyperliquid } from '@relay-bridge/sdk/components';
+    code: `import { DepositToHyperliquid } from 'relay-bridge-sdk/components';
 
 function App() {
   return (
@@ -51,8 +50,9 @@ function App() {
   useLiFiBridge: {
     title: "useLiFiBridge Hook",
     description: "React hook for building custom bridge UIs",
-    code: `import { useLiFiBridge } from '@relay-bridge/sdk/hooks';
-import { CHAIN_IDS } from '@relay-bridge/sdk';
+    code: `import { useLiFiBridge } from 'relay-bridge-sdk/hooks';
+import { CHAIN_IDS } from 'relay-bridge-sdk';
+import { useState } from 'react';
 
 function CustomBridge() {
   const { fetchRoute, executeBridge, bridgeState } = useLiFiBridge();
@@ -62,8 +62,7 @@ function CustomBridge() {
     const route = await fetchRoute({
       fromChain: CHAIN_IDS.BASE,
       toChain: CHAIN_IDS.HYPEREVM,
-      fromToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-      toToken: '0x0000000000000000000000000000000000000000',
+      fromToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
       amount,
     });
     
@@ -90,7 +89,7 @@ function CustomBridge() {
   useHyperliquidBalance: {
     title: "useHyperliquidBalance Hook",
     description: "Fetch Hyperliquid account balance",
-    code: `import { useHyperliquidBalance } from '@relay-bridge/sdk/hooks';
+    code: `import { useHyperliquidBalance } from 'relay-bridge-sdk/hooks';
 import { useAccount } from 'wagmi';
 
 function BalanceDisplay() {
@@ -100,7 +99,7 @@ function BalanceDisplay() {
     perpBalance,
     spotBalances,
     isLoading,
-  } = useHyperliquidBalance(address);
+  } = useHyperliquidBalance(address || undefined);
 
   if (isLoading) return <div>Loading...</div>;
 
@@ -136,8 +135,8 @@ const CODE_GENERATORS = {
     ],
     generate: (
       values: Record<string, string>
-    ) => `import { useLiFiBridge } from '@relay-bridge/sdk/hooks';
-import { CHAIN_IDS } from '@relay-bridge/sdk';
+    ) => `import { useLiFiBridge } from 'relay-bridge-sdk/hooks';
+import { CHAIN_IDS } from 'relay-bridge-sdk';
 
 function Bridge() {
   const { fetchRoute, executeBridge } = useLiFiBridge();
@@ -146,7 +145,7 @@ function Bridge() {
     const route = await fetchRoute({
       fromChain: CHAIN_IDS.${values.fromChain?.toUpperCase() || "BASE"},
       toChain: CHAIN_IDS.${values.toChain?.toUpperCase() || "HYPEREVM"},
-      fromToken: '0x...', // Your token address
+      fromToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
       amount: '${values.amount || "100"}',
     });
     
@@ -167,8 +166,8 @@ function Bridge() {
     ],
     generate: (
       values: Record<string, string>
-    ) => `import { useLiFiBridge, useHyperliquidDeposit } from '@relay-bridge/sdk/hooks';
-import { CHAIN_IDS } from '@relay-bridge/sdk';
+    ) => `import { useLiFiBridge, useHyperliquidDeposit } from 'relay-bridge-sdk/hooks';
+import { CHAIN_IDS } from 'relay-bridge-sdk';
 
 function FullIntegration() {
   const { fetchRoute, executeBridge, bridgeState } = useLiFiBridge();
@@ -177,10 +176,10 @@ function FullIntegration() {
   const handleBridgeAndDeposit = async () => {
     ${
       values.depositEnabled === "true"
-        ? `// Bridge to Arbitrum and auto-deposit
+        ? `// Bridge to Arbitrum and auto-deposit to Hyperliquid
     const route = await fetchHyperliquidRoute({
       fromChain: CHAIN_IDS.BASE,
-      fromToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+      fromToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
       amount: '100',
     });
     
@@ -189,7 +188,7 @@ function FullIntegration() {
     const route = await fetchRoute({
       fromChain: CHAIN_IDS.BASE,
       toChain: CHAIN_IDS.HYPEREVM,
-      fromToken: '0x...', 
+      fromToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
       amount: '100',
     });
     
@@ -250,7 +249,7 @@ export default function DevPage() {
       <div className="pt-40 pb-12 px-4 md:px-8 max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-12 text-center">
-          <h1 className="text-5xl md:text-7xl font-heading font-black uppercase mb-4 bg-gradient-to-r from-[#03b3c3] to-[#d856bf] bg-clip-text text-transparent">
+          <h1 className="text-5xl md:text-7xl font-heading font-black uppercase mb-4 bg-linear-to-r from-[#03b3c3] to-[#d856bf] bg-clip-text text-transparent">
             Developer Playground
           </h1>
           <p className="text-xl text-white/70 max-w-3xl mx-auto">
@@ -272,10 +271,10 @@ export default function DevPage() {
               }`}
             >
               {tab === "playground"
-                ? "🎮 Component Playground"
+                ? "Component Playground"
                 : tab === "generator"
-                ? "⚙️ Code Generator"
-                : "📋 Snippets"}
+                ? "Code Generator"
+                : "Snippets"}
             </button>
           ))}
         </div>
@@ -495,19 +494,19 @@ export default function DevPage() {
                 <pre className="glass-card p-4 rounded-lg overflow-x-auto bg-black/20">
                   <code className="text-sm text-white/90">
                     {`# npm
-npm install @relay-bridge/sdk wagmi viem
+npm install relay-bridge-sdk wagmi viem
 
 # yarn
-yarn add @relay-bridge/sdk wagmi viem
+yarn add relay-bridge-sdk wagmi viem
 
 # pnpm
-pnpm add @relay-bridge/sdk wagmi viem`}
+pnpm add relay-bridge-sdk wagmi viem`}
                   </code>
                 </pre>
                 <button
                   onClick={() =>
                     copyToClipboard(
-                      "npm install @relay-bridge/sdk wagmi viem",
+                      "npm install relay-bridge-sdk wagmi viem",
                       "install"
                     )
                   }
@@ -528,7 +527,7 @@ pnpm add @relay-bridge/sdk wagmi viem`}
                   <code className="text-sm text-white/90">
                     {`import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { config } from '@relay-bridge/sdk';
+import { config } from 'relay-bridge-sdk';
 
 const queryClient = new QueryClient();
 
@@ -567,7 +566,7 @@ export function App() {
                   <pre className="glass-card p-3 rounded-lg overflow-x-auto bg-black/20">
                     <code className="text-sm text-white/90">
                       {`// Components
-import { BridgeWidget, DepositToHyperliquid } from '@relay-bridge/sdk/components';`}
+import { BridgeWidget, DepositToHyperliquid } from 'relay-bridge-sdk/components';`}
                     </code>
                   </pre>
                 </div>
@@ -575,7 +574,7 @@ import { BridgeWidget, DepositToHyperliquid } from '@relay-bridge/sdk/components
                   <pre className="glass-card p-3 rounded-lg overflow-x-auto bg-black/20">
                     <code className="text-sm text-white/90">
                       {`// Hooks
-import { useLiFiBridge, useHyperliquidDeposit, useHyperliquidBalance } from '@relay-bridge/sdk/hooks';`}
+import { useLiFiBridge, useHyperliquidDeposit, useHyperliquidBalance } from 'relay-bridge-sdk/hooks';`}
                     </code>
                   </pre>
                 </div>
@@ -583,7 +582,7 @@ import { useLiFiBridge, useHyperliquidDeposit, useHyperliquidBalance } from '@re
                   <pre className="glass-card p-3 rounded-lg overflow-x-auto bg-black/20">
                     <code className="text-sm text-white/90">
                       {`// Utils
-import { formatTokenAmount, getFeaturedTokens } from '@relay-bridge/sdk/utils';`}
+import { formatTokenAmount, getFeaturedTokens } from 'relay-bridge-sdk/utils';`}
                     </code>
                   </pre>
                 </div>
@@ -591,7 +590,7 @@ import { formatTokenAmount, getFeaturedTokens } from '@relay-bridge/sdk/utils';`
                   <pre className="glass-card p-3 rounded-lg overflow-x-auto bg-black/20">
                     <code className="text-sm text-white/90">
                       {`// Config
-import { CHAIN_IDS, config } from '@relay-bridge/sdk';`}
+import { CHAIN_IDS, config } from 'relay-bridge-sdk';`}
                     </code>
                   </pre>
                 </div>
@@ -615,7 +614,7 @@ import { CHAIN_IDS, config } from '@relay-bridge/sdk';`}
             </Button>
             <Button
               onClick={() =>
-                window.open("https://github.com/relay-bridge/sdk", "_blank")
+                window.open("https://github.com/KaushikKC/relay", "_blank")
               }
               className="bg-white/5 border border-white/20 hover:bg-white/10"
             >
