@@ -2,6 +2,14 @@
 
 One-click cross-chain bridge to HyperEVM and Hyperliquid powered by LI.FI.
 
+## Quick Links
+
+- **Live App**: [https://relay-lifi.vercel.app](https://relay-lifi.vercel.app)
+- **NPM Package**: [relay-bridge-sdk](https://www.npmjs.com/package/relay-bridge-sdk)
+- **Documentation**: [https://relay-lifi.vercel.app/docs](https://relay-lifi.vercel.app/docs)
+- **Developer Playground**: [https://relay-lifi.vercel.app/dev](https://relay-lifi.vercel.app/dev)
+- **GitHub**: [https://github.com/KaushikKC/relay](https://github.com/KaushikKC/relay)
+
 ## Overview
 
 Relay is a production-ready bridge dApp that simplifies onboarding to HyperEVM and Hyperliquid from any supported chain. It provides a seamless, failure-resilient bridging experience with intelligent gas management, transaction persistence, and optional auto-deposit to Hyperliquid trading accounts.
@@ -68,7 +76,7 @@ Relay is a production-ready bridge dApp that simplifies onboarding to HyperEVM a
 
 1. Clone the repository:
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/KaushikKC/relay.git
 cd relay/frontend
 ```
 
@@ -256,8 +264,8 @@ await executeRoute(routes.routes[0], {
 ### Chain Details
 
 - **Chain ID**: 999
-- **RPC URL**: `https://api.hyperliquid-testnet.xyz/evm`
-- **Explorer**: `https://explorer.hyperliquid-testnet.xyz`
+- **RPC URL**: `https://api.hyperliquid.xyz/evm` (Mainnet)
+- **Explorer**: `https://hyperevmscan.io`
 
 ## Development
 
@@ -326,6 +334,7 @@ relay/frontend/
 
 ## Resources
 
+- **SDK Package**: [relay-bridge-sdk on npm](https://www.npmjs.com/package/relay-bridge-sdk)
 - [LI.FI Documentation](https://docs.li.fi/)
 - [Hyperliquid Documentation](https://hyperliquid.gitbook.io/hyperliquid-docs/)
 - [HyperEVM Docs](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/hyperevm)
@@ -382,4 +391,10 @@ A production-ready bridge dApp that:
 
 ### Live Link
 
-[Link to deployment - to be added]
+**Live Application**: [https://relay-lifi.vercel.app](https://relay-lifi.vercel.app)
+
+**NPM Package**: [https://www.npmjs.com/package/relay-bridge-sdk](https://www.npmjs.com/package/relay-bridge-sdk)
+
+**Documentation**: [https://relay-lifi.vercel.app/docs](https://relay-lifi.vercel.app/docs)
+
+**Developer Playground**: [https://relay-lifi.vercel.app/dev](https://relay-lifi.vercel.app/dev)
