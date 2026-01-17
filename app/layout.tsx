@@ -47,7 +47,7 @@ export default function RootLayout({
         className={`${monumentExtended.variable} ${spaceGrotesk.variable} antialiased`}
       >
         <Web3Provider>
-          {children}
+        {children}
         </Web3Provider>
       </body>
     </html>
