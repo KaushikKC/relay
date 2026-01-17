@@ -1,0 +1,80 @@
+{
+  "name": "relay-bridge-sdk",
+  "version": "1.0.1",
+  "description": "Relay Bridge SDK - Seamlessly bridge assets to HyperEVM and Hyperliquid",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./components": {
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.mjs",
+      "require": "./dist/components/index.js"
+    },
+    "./hooks": {
+      "types": "./dist/hooks/index.d.ts",
+      "import": "./dist/hooks/index.mjs",
+      "require": "./dist/hooks/index.js"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "import": "./dist/utils/index.mjs",
+      "require": "./dist/utils/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "type-check": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "relay",
+    "bridge",
+    "hyperliquid",
+    "hyperevm",
+    "cross-chain",
+    "lifi",
+    "web3",
+    "defi",
+    "react",
+    "typescript"
+  ],
+  "author": "Relay Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KaushikKC/relay.git"
+  },
+  "bugs": {
+    "url": "https://github.com/KaushikKC/relay/issues"
+  },
+  "homepage": "https://relay-lifi.vercel.app",
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "wagmi": "^2.0.0",
+    "viem": "^2.0.0"
+  },
+  "dependencies": {
+    "@lifi/sdk": "^3.15.1",
+    "@lifi/wallet-management": "^3.22.1",
+    "@tanstack/react-query": "^5.90.17"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}

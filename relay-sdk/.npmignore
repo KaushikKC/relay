@@ -1,0 +1,13 @@
+src/
+tsconfig.json
+tsup.config.ts
+node_modules/
+.git/
+.gitignore
+*.log
+*.test.ts
+*.test.tsx
+__tests__/
+coverage/
+.env
+.env.local
