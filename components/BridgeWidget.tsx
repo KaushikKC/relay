@@ -9,7 +9,8 @@ import ResumeBridgeDialog from "./ResumeBridgeDialog";
 import PartialFailureRecovery from "./PartialFailureRecovery";
 import MobileWalletConnect from "./MobileWalletConnect";
 import DepositToHyperliquid from "./DepositToHyperliquid";
-import PostBridgeDashboard from "./PostBridgeDashboard"; // NEW
+import PostBridgeDashboard from "./PostBridgeDashboard";
+import PostDepositDashboard from "./PostDepositDashboard";
 import { useSwipeGesture, useIsMobile } from "@/lib/hooks/useSwipeGesture";
 import { useLiFiBridge } from "@/lib/hooks/useLiFiBridge";
 import { useTokenBalance } from "@/lib/hooks/useTokenBalance";
@@ -32,6 +33,7 @@ import {
 } from "@/lib/utils/transactionPersistence";
 import { CHAIN_IDS, type DestinationType } from "@/lib/config/lifi";
 import { useHyperliquidDeposit } from "@/lib/hooks/useHyperliquidDeposit";
+import { useHyperliquidBalance } from "@/lib/hooks/useHyperliquidBalance";
 import type { Chain, Token, RouteExtended } from "@lifi/sdk";
 
 export default function BridgeWidget() {
@@ -109,6 +111,12 @@ export default function BridgeWidget() {
     isLoading: isBalanceLoading,
     symbol,
   } = useTokenBalance(fromChainId, selectedFromToken?.address);
+
+  // Get Hyperliquid balance (for demo/testing - shows current balance on Hyperliquid)
+  const {
+    totalUsdcBalance: hyperliquidUsdcBalance,
+    isLoading: isHyperliquidBalanceLoading,
+  } = useHyperliquidBalance(address);
 
   // Load chains on mount
   useEffect(() => {
@@ -613,73 +621,19 @@ export default function BridgeWidget() {
     );
   }
 
-  // Render Hyperliquid success state
+  // Render Hyperliquid success state with PostDepositDashboard
   if (
     destinationType === "hyperliquid" &&
     hyperliquidState.status === "success"
   ) {
     return (
-      <div
-        className="glass-card mobile-padding mobile-spacing text-center"
-        {...swipeHandlers.handlers}
-      >
-        <div className="w-20 h-20 rounded-full bg-green-400/20 flex items-center justify-center mx-auto mb-6">
-          <svg
-            className="w-10 h-10 text-green-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M5 13l4 4L19 7"
-            />
-          </svg>
-        </div>
-
-        <h2 className="mobile-text-3xl font-heading font-black mb-4">
-          Deposit Complete!
-        </h2>
-
-        <p className="text-white/70 mb-6">
-          Your funds have been deposited to your Hyperliquid trading account.
-          You can now start trading!
-        </p>
-
-        {hyperliquidState.depositTxHash && (
-          <div className="glass-card p-4 rounded-lg mb-6">
-            <p className="text-sm text-white/50 mb-2">Deposit Transaction:</p>
-            <a
-              href={`https://arbiscan.io/tx/${hyperliquidState.depositTxHash}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#03b3c3] hover:underline font-mono text-sm break-all"
-            >
-              {hyperliquidState.depositTxHash}
-            </a>
-          </div>
-        )}
-
-        <div className="space-y-3">
-          <a
-            href="https://app.hyperliquid.xyz/trade"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full py-4 px-6 bg-[#03b3c3] text-white font-semibold rounded-lg hover:bg-[#03b3c3]/90 transition-colors"
-          >
-            Open Hyperliquid Trading
-          </a>
-
-          <button
-            onClick={handleReset}
-            className="w-full py-4 px-6 bg-white/10 text-white font-semibold rounded-lg hover:bg-white/20 transition-colors border border-white/20"
-          >
-            Bridge More Funds
-          </button>
-        </div>
-      </div>
+      <PostDepositDashboard
+        depositAmount={amount}
+        depositTxHash={hyperliquidState.depositTxHash || ""}
+        bridgeTxHash={hyperliquidState.txHash || undefined}
+        sourceChainId={fromChainId}
+        onReset={handleReset}
+      />
     );
   }
 
@@ -714,6 +668,7 @@ export default function BridgeWidget() {
       <PostBridgeDashboard
         amount={amount}
         token={selectedToToken?.symbol || selectedFromToken?.symbol || "tokens"}
+        txHash={bridgeState.txHash || undefined}
         onDepositClick={() => setShowDepositModal(true)}
         onReset={handleReset}
       />
@@ -731,6 +686,7 @@ export default function BridgeWidget() {
       <PostBridgeDashboard
         amount={amount}
         token={selectedToToken?.symbol || selectedFromToken?.symbol || "tokens"}
+        txHash={bridgeState.txHash || undefined}
         onDepositClick={() => setShowDepositModal(true)}
         onReset={handleReset}
       />
@@ -1209,6 +1165,24 @@ export default function BridgeWidget() {
             </button>
           </div>
         </div>
+
+        {/* Hyperliquid Balance Display (for testing) */}
+        {destinationType === "hyperliquid" && address && (
+          <div className="p-3 glass-card rounded-lg border border-[#03b3c3]/30 bg-[#03b3c3]/5">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-white/70">
+                Hyperliquid Balance:
+              </span>
+              {isHyperliquidBalanceLoading ? (
+                <span className="text-sm text-white/50">Loading...</span>
+              ) : (
+                <span className="text-sm font-semibold text-[#03b3c3]">
+                  {hyperliquidUsdcBalance.toFixed(2)} USDC
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Flow explanation for Hyperliquid */}
         {destinationType === "hyperliquid" && (

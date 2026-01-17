@@ -250,7 +250,7 @@ export function useHyperliquidDeposit() {
     []
   );
 
-  // Update step status helper
+  // Update step status helper - also marks next step as in-progress when current completes
   const updateStepStatus = useCallback(
     (
       stepIndex: number,
@@ -270,11 +270,30 @@ export function useHyperliquidDeposit() {
               : undefined,
             error,
           };
+
+          // When a step completes successfully, mark the next step as in-progress
+          if (status === "success" && stepIndex + 1 < newSteps.length) {
+            const nextStep = newSteps[stepIndex + 1];
+            // Only mark as in-progress if it's still pending
+            if (nextStep.status === "pending") {
+              newSteps[stepIndex + 1] = {
+                ...nextStep,
+                status: "in-progress",
+              };
+            }
+          }
         }
+
+        // Update currentStepIndex to the next step when current completes
+        const newCurrentIndex =
+          status === "success" && stepIndex + 1 < newSteps.length
+            ? stepIndex + 1
+            : stepIndex;
+
         return {
           ...prev,
           steps: newSteps,
-          currentStepIndex: stepIndex,
+          currentStepIndex: newCurrentIndex,
         };
       });
     },
@@ -501,6 +520,9 @@ export function useHyperliquidDeposit() {
 
         let currentStepIdx = 0;
 
+        // Mark the first step as in-progress to start
+        updateStepStatus(0, "in-progress");
+
         // Step 1: Execute gas bridge first (if needed)
         if (depositState.needsGasBridge && depositState.gasRoute) {
           console.log("Executing gas bridge to Arbitrum...");
@@ -596,36 +618,73 @@ export function useHyperliquidDeposit() {
         // Execute LI.FI bridge to Arbitrum
         const executionOptions: ExecutionOptions = {
           updateRouteHook: (updatedRoute: RouteExtended) => {
-            // Update corresponding step
-            updatedRoute.steps.forEach((lifiStep, idx) => {
-              // Type-safe access to execution
-              const execution = (lifiStep as RouteExtended["steps"][0])
-                .execution;
-              if (execution) {
-                // Type-safe access to process and txHash
-                const process = execution.process as
-                  | Array<{ txHash?: string }>
-                  | undefined;
-                const txHash = process?.[0]?.txHash;
-                let status: HLStepStatus = "pending";
-                if (execution.status === "DONE") status = "success";
-                else if (execution.status === "FAILED") status = "failed";
-                else if (
-                  execution.status === "PENDING" ||
-                  execution.status === "ACTION_REQUIRED"
-                )
-                  status = "in-progress";
-
-                // Map LI.FI step index to our step index
-                const ourStepIndex = idx < bridgeStepIndex ? idx : idx;
-                if (ourStepIndex < depositState.steps.length) {
-                  updateStepStatus(ourStepIndex, status, txHash);
-                }
-              }
-            });
-
             setDepositState((prev) => {
-              // Type-safe access to txHash
+              const newSteps = [...prev.steps];
+
+              // Update corresponding steps from LI.FI route
+              updatedRoute.steps.forEach((lifiStep, idx) => {
+                const execution = (lifiStep as RouteExtended["steps"][0])
+                  .execution;
+                if (execution) {
+                  const process = execution.process as
+                    | Array<{ txHash?: string }>
+                    | undefined;
+                  const txHash = process?.[0]?.txHash;
+                  let newStatus: HLStepStatus = "pending";
+                  if (execution.status === "DONE") newStatus = "success";
+                  else if (execution.status === "FAILED") newStatus = "failed";
+                  else if (
+                    execution.status === "PENDING" ||
+                    execution.status === "ACTION_REQUIRED"
+                  )
+                    newStatus = "in-progress";
+
+                  // Map LI.FI step index to our step index
+                  const ourStepIndex = currentStepIdx + idx;
+                  if (ourStepIndex < newSteps.length) {
+                    const currentStep = newSteps[ourStepIndex];
+
+                    // IMPORTANT: Only upgrade status, never downgrade
+                    // success > in-progress > pending
+                    const statusPriority: Record<HLStepStatus, number> = {
+                      "success": 4,
+                      "failed": 3,
+                      "in-progress": 2,
+                      "skipped": 1,
+                      "pending": 0,
+                    };
+
+                    // Only update if new status is higher priority OR we have new txHash
+                    if (
+                      statusPriority[newStatus] > statusPriority[currentStep.status] ||
+                      (txHash && !currentStep.txHash)
+                    ) {
+                      newSteps[ourStepIndex] = {
+                        ...currentStep,
+                        status: newStatus,
+                        txHash: txHash || currentStep.txHash,
+                        explorerUrl: txHash
+                          ? `https://arbiscan.io/tx/${txHash}`
+                          : currentStep.explorerUrl,
+                      };
+
+                      // If this step succeeded, mark next step as in-progress
+                      if (
+                        newStatus === "success" &&
+                        ourStepIndex + 1 < newSteps.length &&
+                        newSteps[ourStepIndex + 1].status === "pending"
+                      ) {
+                        newSteps[ourStepIndex + 1] = {
+                          ...newSteps[ourStepIndex + 1],
+                          status: "in-progress",
+                        };
+                      }
+                    }
+                  }
+                }
+              });
+
+              // Get txHash from first step
               const firstStep = updatedRoute.steps[0];
               const execution = firstStep?.execution;
               const process = execution?.process as
@@ -633,8 +692,18 @@ export function useHyperliquidDeposit() {
                 | undefined;
               const txHash = process?.[0]?.txHash || prev.txHash;
 
+              // Find current step index
+              const newCurrentStepIndex = newSteps.findIndex(
+                (s) => s.status === "in-progress"
+              );
+
               return {
                 ...prev,
+                steps: newSteps,
+                currentStepIndex:
+                  newCurrentStepIndex >= 0
+                    ? newCurrentStepIndex
+                    : prev.currentStepIndex,
                 route: updatedRoute,
                 txHash,
               };

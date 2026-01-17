@@ -70,6 +70,45 @@ export function useLiFiBridge() {
     estimatedTime: null,
   });
 
+  // Helper to ensure proper step transitions - marks next step as in-progress when current completes
+  const ensureStepTransitions = (steps: BridgeStep[]): BridgeStep[] => {
+    const updatedSteps = [...steps];
+    let foundInProgress = false;
+
+    for (let i = 0; i < updatedSteps.length; i++) {
+      const step = updatedSteps[i];
+
+      // If we find a step in-progress, mark it
+      if (step.status === "in-progress") {
+        foundInProgress = true;
+      }
+
+      // If a step is success and next step is pending, mark next as in-progress
+      if (
+        step.status === "success" &&
+        i + 1 < updatedSteps.length &&
+        updatedSteps[i + 1].status === "pending" &&
+        !foundInProgress
+      ) {
+        updatedSteps[i + 1] = {
+          ...updatedSteps[i + 1],
+          status: "in-progress",
+        };
+        foundInProgress = true;
+      }
+    }
+
+    // If no step is in-progress and first step is pending, mark it
+    if (!foundInProgress && updatedSteps.length > 0 && updatedSteps[0].status === "pending") {
+      updatedSteps[0] = {
+        ...updatedSteps[0],
+        status: "in-progress",
+      };
+    }
+
+    return updatedSteps;
+  };
+
   // Fetch route from LI.FI
   const fetchRoute = useCallback(
     async (options: {
@@ -193,11 +232,14 @@ export function useLiFiBridge() {
         // Initialize steps from route
         const initialSteps = mapRouteToSteps(route as RouteExtended);
 
+        // Mark first step as in-progress
+        const stepsWithFirstActive = ensureStepTransitions(initialSteps);
+
         setBridgeState((prev) => ({
           ...prev,
           status: "executing",
           error: null,
-          steps: initialSteps,
+          steps: stepsWithFirstActive,
           currentStepIndex: 0,
           routeId: route.id,
         }));
@@ -206,39 +248,78 @@ export function useLiFiBridge() {
         const executionOptions: ExecutionOptions = {
           // Update callback for transaction progress
           updateRouteHook: (updatedRoute: RouteExtended) => {
-            // Map updated route to steps
-            const updatedSteps = mapRouteToSteps(updatedRoute);
+            setBridgeState((prev) => {
+              // Map updated route to steps
+              const rawSteps = mapRouteToSteps(updatedRoute);
 
-            // Find current step
-            const currentStepIndex = updatedSteps.findIndex(
-              (step: BridgeStep) => step.status === "in-progress"
-            );
+              // IMPORTANT: Merge with previous state to preserve our step transitions
+              // Only update step status if LI.FI has new information (like txHash or completion)
+              const mergedSteps = rawSteps.map((newStep, idx) => {
+                const prevStep = prev.steps[idx];
+                if (!prevStep) return newStep;
 
-            // Also find the LI.FI step for backward compatibility
-            const lifiStepIndex = updatedRoute.steps.findIndex(
-              (step) =>
-                step.execution?.status === "PENDING" ||
-                step.execution?.status === "ACTION_REQUIRED"
-            );
+                // If LI.FI says success, use success
+                if (newStep.status === "success") {
+                  return newStep;
+                }
 
-            const currentLifiStep =
-              lifiStepIndex >= 0 ? updatedRoute.steps[lifiStepIndex] : null;
+                // If LI.FI says in-progress with txHash, use it
+                if (newStep.status === "in-progress" && newStep.txHash) {
+                  return newStep;
+                }
 
-            setBridgeState((prev) => ({
-              ...prev,
-              steps: updatedSteps,
-              currentStepIndex:
-                currentStepIndex >= 0
-                  ? currentStepIndex
-                  : prev.currentStepIndex,
-              currentStep: currentLifiStep,
-              route: updatedRoute,
-              status:
-                currentLifiStep?.execution?.status === "ACTION_REQUIRED"
-                  ? "approving"
-                  : "bridging",
-              txHash: updatedSteps[currentStepIndex]?.txHash || prev.txHash,
-            }));
+                // If previous step was already success, keep it
+                if (prevStep.status === "success") {
+                  return prevStep;
+                }
+
+                // If previous was in-progress (we set it), keep in-progress
+                // unless LI.FI has new info
+                if (prevStep.status === "in-progress") {
+                  // Check if LI.FI has new status for this step
+                  if (newStep.status !== "pending") {
+                    return { ...newStep, status: newStep.status };
+                  }
+                  return prevStep;
+                }
+
+                return newStep;
+              });
+
+              // Apply step transitions (mark next step as in-progress when current completes)
+              const finalSteps = ensureStepTransitions(mergedSteps);
+
+              // Find current step (the one that's in-progress)
+              const currentStepIndex = finalSteps.findIndex(
+                (step: BridgeStep) => step.status === "in-progress"
+              );
+
+              // Also find the LI.FI step for backward compatibility
+              const lifiStepIndex = updatedRoute.steps.findIndex(
+                (step) =>
+                  step.execution?.status === "PENDING" ||
+                  step.execution?.status === "ACTION_REQUIRED"
+              );
+
+              const currentLifiStep =
+                lifiStepIndex >= 0 ? updatedRoute.steps[lifiStepIndex] : null;
+
+              return {
+                ...prev,
+                steps: finalSteps,
+                currentStepIndex:
+                  currentStepIndex >= 0
+                    ? currentStepIndex
+                    : prev.currentStepIndex,
+                currentStep: currentLifiStep,
+                route: updatedRoute,
+                status:
+                  currentLifiStep?.execution?.status === "ACTION_REQUIRED"
+                    ? "approving"
+                    : "bridging",
+                txHash: finalSteps[currentStepIndex]?.txHash || prev.txHash,
+              };
+            });
           },
           // Accept exchange rate updates
           acceptExchangeRateUpdateHook: async () => true,
@@ -274,28 +355,29 @@ export function useLiFiBridge() {
 
         const executedRoute = await executeRoute(route, executionOptions);
 
-        // Final step update
-        const finalSteps = mapRouteToSteps(executedRoute);
+        // Final step update - apply step transitions
+        const rawFinalSteps = mapRouteToSteps(executedRoute);
+        const finalSteps = ensureStepTransitions(rawFinalSteps);
         const allSuccess = finalSteps.every(
           (step: BridgeStep) =>
             step.status === "success" || step.status === "skipped"
         );
 
         if (allSuccess) {
-          // Mark receive step as success
-          const receiveStepIndex = finalSteps.findIndex(
-            (step: BridgeStep) => step.type === "receive"
-          );
-          if (receiveStepIndex >= 0) {
-            finalSteps[receiveStepIndex].status = "success";
-          }
+          // Mark receive step as success (it may still be pending/in-progress)
+          const completedSteps = finalSteps.map((step, idx) => {
+            if (step.type === "receive" || idx === finalSteps.length - 1) {
+              return { ...step, status: "success" as StepStatus };
+            }
+            return step;
+          });
 
           setBridgeState((prev) => ({
             ...prev,
             status: "success",
             route: executedRoute,
-            steps: finalSteps,
-            currentStepIndex: finalSteps.length - 1,
+            steps: completedSteps,
+            currentStepIndex: completedSteps.length - 1,
           }));
         } else {
           // Check if this is a status polling failure vs actual failure

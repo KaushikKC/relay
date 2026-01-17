@@ -19,8 +19,6 @@ export default function BridgeProgress({
         <StepCard
           key={step.stepIndex}
           step={step}
-          isActive={index === currentStepIndex}
-          isCompleted={index < currentStepIndex}
           onRetry={onRetryStep ? () => onRetryStep(step.stepIndex) : undefined}
         />
       ))}
@@ -30,15 +28,16 @@ export default function BridgeProgress({
 
 function StepCard({
   step,
-  isActive,
-  isCompleted,
   onRetry,
 }: {
   step: BridgeStep;
-  isActive: boolean;
-  isCompleted: boolean;
   onRetry?: () => void;
 }) {
+  // Use step.status as the source of truth for styling
+  const isActive = step.status === "in-progress";
+  const isCompleted = step.status === "success";
+  const isFailed = step.status === "failed";
+
   const getStatusIcon = () => {
     switch (step.status) {
       case "success":
@@ -103,6 +102,8 @@ function StepCard({
           ? "border-[#03b3c3] bg-[#03b3c3]/10"
           : isCompleted
           ? "border-green-400/30 bg-green-400/5"
+          : isFailed
+          ? "border-red-400/30 bg-red-400/5"
           : "border-white/10"
       }`}
     >
