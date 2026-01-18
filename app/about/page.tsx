@@ -73,7 +73,7 @@ const slides = [
   },
 ];
 
-const YOUTUBE_VIDEO_ID = "HvvGqhEiTFY";
+const YOUTUBE_VIDEO_ID = "igsIav8V2Hk";
 
 export default function AboutPage() {
   const [currentSlide, setCurrentSlide] = useState(0);

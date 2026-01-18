@@ -5,6 +5,7 @@ One-click cross-chain bridge to HyperEVM and Hyperliquid powered by LI.FI.
 ## Quick Links
 
 - **Live App**: [https://relay-lifi.vercel.app](https://relay-lifi.vercel.app)
+- **Demo Video**: [https://youtu.be/igsIav8V2Hk](https://youtu.be/igsIav8V2Hk)
 - **NPM Package**: [relay-bridge-sdk](https://www.npmjs.com/package/relay-bridge-sdk)
 - **Documentation**: [https://relay-lifi.vercel.app/docs](https://relay-lifi.vercel.app/docs)
 - **Developer Playground**: [https://relay-lifi.vercel.app/dev](https://relay-lifi.vercel.app/dev)
@@ -384,10 +385,6 @@ A production-ready bridge dApp that:
 - **Type Safety**: Full TypeScript coverage with proper type definitions
 - **Error Handling**: Comprehensive error boundaries and recovery flows
 - **Performance**: Optimized rendering and state updates
-
-### Demo Video
-
-[Link to demo video - to be added]
 
 ### Live Link
 
