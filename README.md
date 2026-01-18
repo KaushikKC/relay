@@ -22,8 +22,10 @@ Relay is a production-ready bridge dApp that simplifies onboarding to HyperEVM a
 - **Cross-Chain Bridging**: Bridge from any supported chain to HyperEVM or directly to Hyperliquid
 - **Smart Routing**: Automatic route optimization via LI.FI SDK
 - **Dual Destination Support**: Choose between HyperEVM (DeFi) or Hyperliquid (Trading)
+- **Destination Token Selection**: Choose destination token on HyperEVM (USDC, HYPE, ETH, or any supported asset)
 - **Real-Time Tracking**: Step-by-step progress visualization with transaction hashes
 - **Transaction Persistence**: Resume interrupted bridges after page refresh
+- **Route Details**: See quote, ETA, steps, gas costs, and final amount before executing
 
 ### Hyperliquid Integration
 
@@ -32,6 +34,8 @@ Relay is a production-ready bridge dApp that simplifies onboarding to HyperEVM a
 - **Gas Bundling**: Automatically bridges small ETH to Arbitrum for deposit gas fees
 - **Minimum Deposit Validation**: Enforces 5 USDC minimum deposit requirement
 - **Post-Bridge Dashboard**: Enhanced dashboard with trading pair suggestions via Pear API
+- **Post-Deposit Dashboard**: Complete trading dashboard showing balance, status, and trading suggestions
+- **Hyperliquid Balance Integration**: Real-time balance fetching from Hyperliquid API
 
 ### Failure Resilience
 
@@ -48,14 +52,18 @@ Relay is a production-ready bridge dApp that simplifies onboarding to HyperEVM a
 - **Onboarding Intelligence**: Context-aware suggestions after successful bridges
 - **Beautiful UI**: Cyberpunk-themed glassmorphism design with 3D backgrounds
 - **Fast & Efficient**: Optimized for speed and minimal gas costs
+- **Post-Bridge Guidance**: Two distinct dashboards - one for HyperEVM bridge, one for Hyperliquid deposit
+- **Trading Integration**: Pear Protocol API for one-click pair trading
 
 ### Advanced Features
 
 - **Gas Reserve Management**: Automatically checks Arbitrum ETH balance and bridges gas only when needed
-- **Step-by-Step Progress**: Detailed visualization of each bridge step
-- **Route Preview**: See estimated time, gas costs, and steps before executing
-- **Token Selection**: Support for multiple tokens on source and destination chains
+- **Step-by-Step Progress**: Detailed visualization of each bridge step with status (pending/in-progress/success/failed)
+- **Route Preview**: See estimated time, gas costs, steps, and final amount before executing
+- **Token Selection**: Support for multiple tokens on source and destination chains (USDC, HYPE, ETH, etc.)
 - **Balance Display**: Real-time token balance with "Max" button
+- **Destination Token Selection**: Users can choose USDC, HYPE, ETH, or any supported asset on HyperEVM
+- **Hyperliquid Balance Integration**: Real-time balance fetching and display after deposit
 
 ## Tech Stack
 
@@ -109,11 +117,13 @@ npm run dev
 
 1. **Connect Wallet**: Click "Connect Wallet" in the navigation bar
 2. **Select Destination**: Choose "Hyperliquid Exchange" or "HyperEVM"
-3. **Select Chain & Token**: Choose your origin chain and token
-4. **Enter Amount**: Specify the amount to bridge
-5. **Get Quote**: Click "Get Quote" to see the best route
-6. **Execute**: Review and confirm the transaction
-7. **Track**: Monitor your transaction status in real-time
+3. **Select Origin Chain & Token**: Choose your origin chain (Base, Ethereum, etc.) and token (USDC, ETH, etc.)
+4. **Select Destination Token**: Choose destination token on HyperEVM (USDC, HYPE, ETH, or any supported asset)
+5. **Enter Amount**: Specify the amount to bridge
+6. **Get Quote**: Click "Get Quote" to see the best route with quote, ETA, steps, gas costs, and final amount
+7. **Execute**: Review route details and confirm the transaction
+8. **Track**: Monitor your transaction status in real-time with step-by-step progress
+9. **Post-Bridge**: See dashboard with next steps (deposit, trade, or explore)
 
 ### Hyperliquid Deposit Flow
 
@@ -154,21 +164,24 @@ If a bridge fails mid-execution:
 - **`BridgeWidget`**: Main bridging interface with destination selection
 - **`useLiFiBridge`**: Custom hook for HyperEVM bridging via LI.FI
 - **`useHyperliquidDeposit`**: Custom hook for Hyperliquid deposit flow
-- **`BridgeProgress`**: Step-by-step progress visualization
-- **`PostBridgeDashboard`**: Enhanced post-bridge screen with trading suggestions
-- **`ErrorRecovery`**: Comprehensive error handling and recovery
-- **`ResumeBridgeDialog`**: Resume interrupted transactions
-- **`PartialFailureRecovery`**: Handle partial bridge failures
-- **`DepositToHyperliquid`**: Standalone deposit component
-- **`MobileWalletConnect`**: Mobile-optimized wallet connection
+- **`BridgeProgress`**: Step-by-step progress visualization with per-step status
+- **`PostBridgeDashboard`**: Enhanced post-bridge screen after HyperEVM bridge with deposit and trading options
+- **`PostDepositDashboard`**: Complete trading dashboard after Hyperliquid deposit with balance, status, and trading suggestions
+- **`ErrorRecovery`**: Comprehensive error handling and recovery with actionable suggestions
+- **`ResumeBridgeDialog`**: Resume interrupted transactions after page refresh
+- **`PartialFailureRecovery`**: Handle partial bridge failures with funds location tracking
+- **`DepositToHyperliquid`**: Standalone reusable deposit component (exported in SDK)
+- **`MobileWalletConnect`**: Mobile-optimized wallet connection with deep linking
 
 ### Key Utilities
 
-- **`transactionPersistence.ts`**: Save/load bridge state from localStorage
-- **`bridgeSteps.ts`**: Map LI.FI routes to step-by-step progress
-- **`hyperliquid-bridge.ts`**: Hyperliquid Bridge2 contract integration
-- **`pear-api.ts`**: Pear Protocol API integration for trading pairs
-- **`lifi-helpers.ts`**: LI.FI SDK helper functions
+- **`transactionPersistence.ts`**: Save/load bridge state from localStorage with route data and step progress
+- **`bridgeSteps.ts`**: Map LI.FI routes to step-by-step progress with status tracking
+- **`hyperliquid-bridge.ts`**: Hyperliquid Bridge2 contract integration with gas bundling
+- **`hyperliquid-deposit.ts`**: Deposit utilities with minimum amount validation
+- **`pear-api.ts`**: Pear Protocol API integration for trading pairs and one-click trade execution
+- **`lifi-helpers.ts`**: LI.FI SDK helper functions for chains, tokens, and formatting
+- **`useHyperliquidBalance.ts`**: Hook for fetching real-time Hyperliquid account balances
 
 ### Flow Diagrams
 
@@ -343,6 +356,34 @@ relay/frontend/
 - [Viem Documentation](https://viem.sh/)
 - [Pear Protocol API](https://docs.pearprotocol.io/api-integration/overview)
 
+
+## Post-Bridge Dashboards
+
+Relay provides two distinct post-bridge experiences optimized for different user journeys:
+
+### PostBridgeDashboard (After HyperEVM Bridge)
+
+Shown after successful bridge to HyperEVM:
+- Success confirmation with bridged amount
+- HyperEVM balance display
+- Transaction explorer link
+- Primary action: "Deposit to Hyperliquid" button
+- Secondary action: "Open First Pair Trade" (Pear API integration)
+- Links to explore Hyperliquid features (Spot, Perpetuals, Vaults)
+
+### PostDepositDashboard (After Hyperliquid Deposit)
+
+Shown after successful deposit to Hyperliquid:
+- Deposit success confirmation
+- Trading account status (balance, margin available)
+- Real-time balance fetching from Hyperliquid API
+- Trading suggestions with risk levels (Spot, Perpetuals, Vaults)
+- Quick action grid for common trading activities
+- Links to Hyperliquid app for full trading suite
+- Execution readiness checklist
+
+Both dashboards provide clear next steps and guide users to their desired action.
+
 ## License
 
 MIT
@@ -355,36 +396,62 @@ Contributions are welcome! Please open an issue or submit a pull request.
 
 Built for the Hyperliquid Hackathon - Creative use of LI.FI for seamless HyperEVM and Hyperliquid onboarding.
 
+### Requirements Met 
+
+- **Origin Chain + Token Selection**: Users pick origin chain and token
+- **Destination Token Selection**: Users pick destination token on HyperEVM (USDC, HYPE, ETH, or any supported asset)
+- **LI.FI Integration**: Uses LI.FI SDK (not just redirect) for swap and bridge in one flow
+- **Route Details**: Shows quote, ETA, steps, progress, and final amount
+- **Execution State**: Real-time step-by-step progress with transaction hashes
+- **Auto-Deposit**: Optional auto-deposit bridged USDC into Hyperliquid account
+
+### Extra Credit Achieved 
+
+- **Reusable Component**: `DepositToHyperliquid` component published as NPM package
+- **Mobile-First Experience**: Fully optimized with swipe gestures and touch-friendly UI
+- **Developer Tool**: `/dev` page with code generator and component playground
+
 ### What We Built
 
 A production-ready bridge dApp that:
 
 - **Simplifies Onboarding**: One-click bridge from any chain to HyperEVM or Hyperliquid
+- **Destination Token Selection**: Full support for USDC, HYPE, ETH, and any supported asset on HyperEVM
 - **Failure-Resilient UX**: Resume bridges, handle partial failures, clear error recovery
 - **Intelligent Gas Management**: Automatic gas bundling for Hyperliquid deposits
 - **Transaction Persistence**: Survive page refreshes and interruptions
 - **Mobile-First Design**: Optimized for mobile with swipe gestures
-- **Enhanced Post-Bridge Experience**: Dashboard with trading suggestions via Pear API
-- **Step-by-Step Tracking**: Real-time progress visualization
+- **Enhanced Post-Bridge Experience**: Two distinct dashboards - PostBridgeDashboard (HyperEVM) and PostDepositDashboard (Hyperliquid)
+- **Trading Integration**: Pear Protocol API for one-click pair trading
+- **Step-by-Step Tracking**: Real-time progress visualization with per-step status and retry buttons
 - **Production Ready**: Comprehensive error handling, retry logic, and state management
+- **Reusable SDK**: Published NPM package for other teams
+- **Developer Tools**: Code generator and playground at `/dev`
 
 ### Key Differentiators
 
 1. **Dual Destination Support**: Bridge to HyperEVM or directly to Hyperliquid
-2. **Gas Bundling**: Solves the "no gas on destination" problem automatically
-3. **Failure Resilience**: Resume bridges, partial failure recovery, transaction persistence
-4. **Onboarding Intelligence**: Context-aware suggestions after successful bridges
-5. **Mobile Optimization**: Touch-friendly UI with swipe gestures
-6. **Pear API Integration**: Trading pair suggestions and one-click trade execution
+2. **Destination Token Selection**: Users can choose USDC, HYPE, ETH, or any supported asset on HyperEVM
+3. **Gas Bundling**: Solves the "no gas on destination" problem automatically
+4. **Failure Resilience**: Resume bridges, partial failure recovery, transaction persistence
+5. **Onboarding Intelligence**: Context-aware suggestions after successful bridges
+6. **Mobile Optimization**: Touch-friendly UI with swipe gestures
+7. **Pear API Integration**: Trading pair suggestions and one-click trade execution
+8. **Reusable SDK**: Published NPM package for other teams to integrate
+9. **Developer Tools**: Code generator and component playground at `/dev`
+10. **Two Post-Bridge Dashboards**: Separate optimized experiences for HyperEVM bridge vs Hyperliquid deposit
 
 ### Technical Highlights
 
-- **LI.FI SDK Integration**: Full integration with dynamic wallet client
-- **Hyperliquid Bridge2**: Direct integration with Bridge2 contract
-- **State Persistence**: localStorage-based transaction state management
+- **LI.FI SDK Integration**: Full integration with dynamic wallet client, not just redirect
+- **Hyperliquid Bridge2**: Direct integration with Bridge2 contract for deposits
+- **State Persistence**: localStorage-based transaction state management with route data
 - **Type Safety**: Full TypeScript coverage with proper type definitions
 - **Error Handling**: Comprehensive error boundaries and recovery flows
 - **Performance**: Optimized rendering and state updates
+- **Step-by-Step Tracking**: Real-time progress with per-step status, tx hashes, and retry buttons
+- **Hyperliquid API Integration**: Real-time balance fetching and account status
+- **Pear Protocol Integration**: API integration for pair trading suggestions and execution
 
 ### Live Link
 
